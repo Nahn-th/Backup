@@ -1,4 +1,4 @@
-import {AudioPro, AudioProContentType} from 'react-native-audio-pro';
+import { AudioPro, AudioProContentType } from 'react-native-audio-pro';
 
 export function setupAudioService() {
   // Configure Audio Pro
@@ -22,7 +22,7 @@ export async function playTrack(song) {
     album: song.album?.name || '',
   };
 
-  AudioPro.play(track, {autoPlay: true});
+  AudioPro.play(track, { autoPlay: true });
 }
 
 export async function pauseAudio() {

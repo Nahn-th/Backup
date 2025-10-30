@@ -11,21 +11,21 @@ export const fetchSongs = async (language = 'hindi', page = null) => {
   try {
     const pageNum = page || getRandomPage();
     const response = await axios.get(
-      `${BASE_URL}/search/songs?query=${language}&page=${pageNum}&limit=40`
+      `${BASE_URL}/search/songs?query=${language}&page=${pageNum}&limit=40`,
     );
-    
+
     if (response.data.success && response.data.data.results) {
       // Remove duplicates based on song ID
       const uniqueSongs = [];
       const seenIds = new Set();
-      
+
       for (const song of response.data.data.results) {
         if (!seenIds.has(song.id)) {
           seenIds.add(song.id);
           uniqueSongs.push(song);
         }
       }
-      
+
       return uniqueSongs;
     }
     return [];
@@ -38,9 +38,9 @@ export const fetchSongs = async (language = 'hindi', page = null) => {
 export const fetchModules = async (language = 'hindi') => {
   try {
     const response = await axios.get(
-      `${MODULES_URL}/modules?language=${language}`
+      `${MODULES_URL}/modules?language=${language}`,
     );
-    
+
     if (response.data.status === 'SUCCESS' && response.data.data) {
       return {
         albums: response.data.data.albums || [],
@@ -48,13 +48,12 @@ export const fetchModules = async (language = 'hindi') => {
         charts: response.data.data.charts || [],
       };
     }
-    return {albums: [], playlists: [], charts: []};
+    return { albums: [], playlists: [], charts: [] };
   } catch (error) {
     console.error('Error fetching modules:', error);
-    return {albums: [], playlists: [], charts: []};
+    return { albums: [], playlists: [], charts: [] };
   }
 };
-
 
 export const fetchUniqueSuggestedSongs = async () => {
   try {
@@ -88,4 +87,3 @@ export const fetchUniqueSuggestedSongs = async () => {
     return [];
   }
 };
-
