@@ -84,47 +84,76 @@ const SongsScreen = () => {
     setIsScanning(true);
 
     try {
+      // Quét nhiều thư mục hơn
       const musicPaths = [
         `${RNFS.ExternalStorageDirectoryPath}/Music`,
         `${RNFS.ExternalStorageDirectoryPath}/Download`,
         `${RNFS.DownloadDirectoryPath}`,
+        `${RNFS.ExternalStorageDirectoryPath}/Downloads`, // Thêm Downloads
+        `${RNFS.ExternalStorageDirectoryPath}`, // Thêm root storage
       ];
 
       let foundFiles = [];
 
-      for (const path of musicPaths) {
+      // Hàm đệ quy để scan tất cả subfolders
+      const scanDirectory = async (dirPath, depth = 0) => {
+        if (depth > 3) return; // Giới hạn độ sâu để tránh scan quá lâu
+
         try {
-          const exists = await RNFS.exists(path);
-          if (exists) {
-            const files = await RNFS.readDir(path);
-            const musicFiles = files.filter(
-              file =>
-                file.isFile() &&
-                (file.name.endsWith('.mp3') ||
-                  file.name.endsWith('.m4a') ||
-                  file.name.endsWith('.wav')),
-            );
-            foundFiles = [...foundFiles, ...musicFiles];
+          const exists = await RNFS.exists(dirPath);
+          if (!exists) return;
+
+          const items = await RNFS.readDir(dirPath);
+
+          for (const item of items) {
+            if (item.isFile()) {
+              const fileName = item.name.toLowerCase();
+              if (
+                fileName.endsWith('.mp3') ||
+                fileName.endsWith('.m4a') ||
+                fileName.endsWith('.wav') ||
+                fileName.endsWith('.flac') ||
+                fileName.endsWith('.aac')
+              ) {
+                foundFiles.push(item);
+              }
+            } else if (item.isDirectory() && depth < 3) {
+              // Skip các thư mục hệ thống
+              const skipDirs = ['Android', '.', 'DCIM', 'Pictures', 'Movies'];
+              const shouldSkip = skipDirs.some(skip =>
+                item.name.includes(skip),
+              );
+              if (!shouldSkip) {
+                await scanDirectory(item.path, depth + 1);
+              }
+            }
           }
         } catch (error) {
-          console.log(`Error scanning ${path}:`, error);
+          console.log(`Error scanning ${dirPath}:`, error);
         }
+      };
+
+      // Scan tất cả các paths
+      for (const path of musicPaths) {
+        await scanDirectory(path);
       }
 
       if (foundFiles.length === 0) {
         Alert.alert(
           'No Music Found',
-          'No music files found in Music or Download folders.',
+          'No music files found. Please ensure you have MP3, M4A, WAV, FLAC, or AAC files on your device.\n\nScanned paths:\n- Music\n- Download/Downloads\n- Root storage',
         );
         setIsScanning(false);
         return;
       }
 
+      console.log(`Found ${foundFiles.length} music files`);
+
       // Insert songs into database
       let insertedCount = 0;
       for (const file of foundFiles) {
         try {
-          const title = file.name.replace(/\.(mp3|m4a|wav)$/i, '');
+          const title = file.name.replace(/\.(mp3|m4a|wav|flac|aac)$/i, '');
           const song = {
             title,
             path: file.path,
@@ -140,10 +169,13 @@ const SongsScreen = () => {
       }
 
       loadSongs();
-      Alert.alert('Scan Complete', `Found and added ${insertedCount} songs.`);
+      Alert.alert(
+        'Scan Complete',
+        `Found ${foundFiles.length} files.\nSuccessfully added ${insertedCount} songs.`,
+      );
     } catch (error) {
       console.error('Scan error:', error);
-      Alert.alert('Scan Error', 'An error occurred while scanning for music.');
+      Alert.alert('Scan Error', `An error occurred: ${error.message}`);
     } finally {
       setIsScanning(false);
     }
