@@ -17,11 +17,17 @@ import SearchBar from '../components/SearchBar';
 import SettingsIcon from '../components/SettingsIcon';
 import SongItem from '../components/SongItem';
 import MiniPlayer from '../components/MiniPlayer';
+import TextInputModal from '../components/TextInputModal';
 import {
   getAllSongs,
   searchSongs,
   insertSong,
   deleteSong,
+  updateSong,
+  getAllPlaylists,
+  addSongToPlaylist,
+  getAllGenres,
+  linkSongGenre,
 } from '../database/db';
 
 const SongsScreen = () => {
@@ -86,11 +92,11 @@ const SongsScreen = () => {
     try {
       // Quét nhiều thư mục hơn
       const musicPaths = [
-        `${RNFS.ExternalStorageDirectoryPath}/Music`,
-        `${RNFS.ExternalStorageDirectoryPath}/Download`,
-        `${RNFS.DownloadDirectoryPath}`,
-        `${RNFS.ExternalStorageDirectoryPath}/Downloads`, // Thêm Downloads
-        `${RNFS.ExternalStorageDirectoryPath}`, // Thêm root storage
+        // `${RNFS.ExternalStorageDirectoryPath}/Music`,
+        `${RNFS.ExternalStorageDirectoryPath}/Download/Music`,
+        // `${RNFS.DownloadDirectoryPath}`,
+        // `${RNFS.ExternalStorageDirectoryPath}/Downloads`,
+        // `${RNFS.ExternalStorageDirectoryPath}`,
       ];
 
       let foundFiles = [];
@@ -201,10 +207,16 @@ const SongsScreen = () => {
     Alert.alert(song.title, 'Choose an action', [
       {
         text: 'Add to Playlist',
-        onPress: () => console.log('Add to playlist'),
+        onPress: () => handleAddToPlaylist(song),
       },
-      { text: 'Add to Genre', onPress: () => console.log('Add to genre') },
-      { text: 'Edit Song Info', onPress: () => console.log('Edit song') },
+      {
+        text: 'Add to Genre',
+        onPress: () => handleAddToGenre(song),
+      },
+      {
+        text: 'Edit Song Info',
+        onPress: () => handleEditSong(song),
+      },
       {
         text: 'Delete',
         onPress: () => {
@@ -228,6 +240,82 @@ const SongsScreen = () => {
       },
       { text: 'Cancel', style: 'cancel' },
     ]);
+  };
+
+  const handleAddToPlaylist = song => {
+    const playlists = getAllPlaylists();
+
+    if (playlists.length === 0) {
+      Alert.alert('No Playlists', 'Please create a playlist first.');
+      return;
+    }
+
+    const playlistNames = playlists.map(p => p.name);
+
+    Alert.alert('Add to Playlist', 'Choose a playlist:', [
+      ...playlists.map(playlist => ({
+        text: playlist.name,
+        onPress: () => {
+          const success = addSongToPlaylist(song.id, playlist.id);
+          if (success) {
+            Alert.alert('Success', `Added to "${playlist.name}"`);
+          } else {
+            Alert.alert('Error', 'Failed to add song to playlist.');
+          }
+        },
+      })),
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const handleAddToGenre = song => {
+    const genres = getAllGenres();
+
+    if (genres.length === 0) {
+      Alert.alert('No Genres', 'Please create a genre first.');
+      return;
+    }
+
+    Alert.alert('Add to Genre', 'Choose a genre:', [
+      ...genres.map(genre => ({
+        text: genre.name,
+        onPress: () => {
+          const success = linkSongGenre(song.id, genre.id);
+          if (success) {
+            Alert.alert('Success', `Added to genre "${genre.name}"`);
+          } else {
+            Alert.alert('Info', 'Song may already be in this genre.');
+          }
+        },
+      })),
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const handleEditSong = song => {
+    Alert.prompt(
+      'Edit Song Info',
+      'Enter new song title',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Save',
+          onPress: text => {
+            if (text && text.trim()) {
+              const success = updateSong(song.id, { title: text.trim() });
+              if (success) {
+                Alert.alert('Success', 'Song title updated!');
+                loadSongs();
+              } else {
+                Alert.alert('Error', 'Failed to update song.');
+              }
+            }
+          },
+        },
+      ],
+      'plain-text',
+      song.title,
+    );
   };
 
   const renderHeader = () => (

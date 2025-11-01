@@ -14,7 +14,12 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useApp } from '../context/AppContext';
 import SongItem from '../components/SongItem';
 import MiniPlayer from '../components/MiniPlayer';
-import { getSongsByGenre, unlinkSongGenre } from '../database/db';
+import {
+  getSongsByGenre,
+  unlinkSongGenre,
+  getAllPlaylists,
+  addSongToPlaylist,
+} from '../database/db';
 
 const GenreDetailScreen = () => {
   const navigation = useNavigation();

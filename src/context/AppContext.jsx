@@ -5,20 +5,23 @@ import React, {
   useContext,
   useRef,
 } from 'react';
-import Sound from 'react-native-audio-pro';
+import Sound from 'react-native-sound';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getColors } from '../utils/colors';
 import { addSongToHistory } from '../database/db';
+
+// Enable playback in silence mode (iOS)
+Sound.setCategory('Playback');
 
 const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
   const [isDark, setIsDark] = useState(true);
-  const [layout, setLayout] = useState('list'); // 'list' or 'grid'
+  const [layout, setLayout] = useState('list');
   const [currentTrack, setCurrentTrack] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [shuffleMode, setShuffleMode] = useState(false);
-  const [repeatMode, setRepeatMode] = useState('off'); // 'off', 'all', 'one'
+  const [repeatMode, setRepeatMode] = useState('off');
   const [queue, setQueue] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [progress, setProgress] = useState({ position: 0, duration: 0 });
@@ -90,7 +93,7 @@ export const AppProvider = ({ children }) => {
     }
 
     progressInterval.current = setInterval(() => {
-      if (sound) {
+      if (sound && sound.isLoaded()) {
         sound.getCurrentTime(seconds => {
           setProgress(prev => ({ ...prev, position: seconds }));
         });
@@ -106,8 +109,10 @@ export const AppProvider = ({ children }) => {
   };
 
   // Play a song or list of songs
-  const playSong = async (song, songList = []) => {
+  const playSong = (song, songList = []) => {
     try {
+      console.log('🎵 Playing song:', song.title, 'Path:', song.path);
+
       // Release previous sound
       if (soundRef.current) {
         soundRef.current.stop();
@@ -126,21 +131,22 @@ export const AppProvider = ({ children }) => {
       // Create new sound instance
       const sound = new Sound(song.path, '', error => {
         if (error) {
-          console.error('Failed to load sound:', error);
+          console.error('❌ Failed to load sound:', error);
+          console.error('Path:', song.path);
           return;
         }
 
-        // Get duration
+        console.log('✅ Sound loaded successfully');
         const duration = sound.getDuration();
         setProgress({ position: 0, duration });
 
         // Play sound
         sound.play(success => {
           if (success) {
-            console.log('Song finished playing');
+            console.log('✅ Playback finished');
             handleSongEnd();
           } else {
-            console.error('Playback failed');
+            console.error('❌ Playback failed');
           }
         });
 
@@ -154,9 +160,9 @@ export const AppProvider = ({ children }) => {
       addSongToHistory(song.id);
 
       // Save last played song
-      await AsyncStorage.setItem('lastPlayedSong', String(song.id));
+      AsyncStorage.setItem('lastPlayedSong', String(song.id));
     } catch (error) {
-      console.error('Error playing song:', error);
+      console.error('❌ Error playing song:', error);
     }
   };
 
@@ -181,7 +187,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const pause = () => {
-    if (soundRef.current) {
+    if (soundRef.current && soundRef.current.isLoaded()) {
       soundRef.current.pause();
       setIsPlaying(false);
       stopProgressTracking();
@@ -189,7 +195,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const resume = () => {
-    if (soundRef.current) {
+    if (soundRef.current && soundRef.current.isLoaded()) {
       soundRef.current.play(success => {
         if (!success) {
           console.error('Resume failed');
@@ -243,19 +249,19 @@ export const AppProvider = ({ children }) => {
   };
 
   const seekTo = position => {
-    if (soundRef.current) {
+    if (soundRef.current && soundRef.current.isLoaded()) {
       soundRef.current.setCurrentTime(position);
       setProgress(prev => ({ ...prev, position }));
     }
   };
 
-  const playShuffled = async songList => {
+  const playShuffled = songList => {
     try {
       if (songList.length === 0) return;
 
       // Shuffle the list
       const shuffled = [...songList].sort(() => Math.random() - 0.5);
-      await playSong(shuffled[0], shuffled);
+      playSong(shuffled[0], shuffled);
     } catch (error) {
       console.error('Error playing shuffled:', error);
     }

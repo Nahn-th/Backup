@@ -7,12 +7,17 @@ import {
     SafeAreaView,
     Image,
     Alert,
+    ScrollView,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import Slider from '@react-native-community/slider';
 import { useApp } from '../context/AppContext';
-import { getGenresBySong } from '../database/db';
+import {
+    getGenresBySong,
+    getAllPlaylists,
+    addSongToPlaylist,
+} from '../database/db';
 
 const NowPlayingScreen = () => {
     const navigation = useNavigation();
@@ -95,140 +100,165 @@ const NowPlayingScreen = () => {
         <SafeAreaView
             style={[styles.container, { backgroundColor: colors.background }]}
         >
-            <View style={styles.header}>
-                <TouchableOpacity
-                    onPress={() => navigation.goBack()}
-                    style={styles.backButton}
-                >
-                    <Icon name="chevron-down" size={32} color={colors.textPrimary} />
-                </TouchableOpacity>
-            </View>
-
-            <View style={styles.content}>
-                {currentTrack.cover_image_path ? (
-                    <Image
-                        source={{ uri: currentTrack.cover_image_path }}
-                        style={styles.albumArt}
-                    />
-                ) : (
-                    <View
-                        style={[
-                            styles.albumArtPlaceholder,
-                            { backgroundColor: colors.surface },
-                        ]}
+            <ScrollView
+                contentContainerStyle={{
+                    flexGrow: 1,
+                    justifyContent: 'center',
+                    paddingBottom: 80, // chừa chỗ cho thanh tab hoặc điều hướng
+                }}
+                showsVerticalScrollIndicator={false}
+            >
+                <View style={styles.header}>
+                    <TouchableOpacity
+                        onPress={() => navigation.goBack()}
+                        style={styles.backButton}
                     >
-                        <Icon name="musical-note" size={120} color={colors.iconInactive} />
-                    </View>
-                )}
-
-                <View style={styles.infoContainer}>
-                    <Text
-                        style={[styles.title, { color: colors.textPrimary }]}
-                        numberOfLines={2}
-                    >
-                        {currentTrack.title}
-                    </Text>
-                    <Text
-                        style={[styles.artist, { color: colors.textSecondary }]}
-                        numberOfLines={1}
-                    >
-                        {currentTrack.artist_name_string || 'Unknown Artist'}
-                    </Text>
+                        <Icon name="chevron-down" size={32} color={colors.textPrimary} />
+                    </TouchableOpacity>
                 </View>
 
-                <View style={styles.progressContainer}>
-                    <Slider
-                        style={styles.slider}
-                        value={progress.position}
-                        minimumValue={0}
-                        maximumValue={progress.duration || 1}
-                        minimumTrackTintColor={colors.primary}
-                        maximumTrackTintColor={colors.border}
-                        thumbTintColor={colors.primary}
-                        onSlidingComplete={handleSliderChange}
-                    />
-                    <View style={styles.timeContainer}>
-                        <Text style={[styles.timeText, { color: colors.textSecondary }]}>
-                            {formatTime(progress.position)}
+                <View style={styles.content}>
+                    {currentTrack.cover_image_path ? (
+                        <Image
+                            source={{ uri: currentTrack.cover_image_path }}
+                            style={styles.albumArt}
+                        />
+                    ) : (
+                        <View
+                            style={[
+                                styles.albumArtPlaceholder,
+                                { backgroundColor: colors.surface },
+                            ]}
+                        >
+                            <Icon
+                                name="musical-note"
+                                size={120}
+                                color={colors.iconInactive}
+                            />
+                        </View>
+                    )}
+
+                    <View style={styles.infoContainer}>
+                        <Text
+                            style={[styles.title, { color: colors.textPrimary }]}
+                            numberOfLines={2}
+                        >
+                            {currentTrack.title}
                         </Text>
-                        <Text style={[styles.timeText, { color: colors.textSecondary }]}>
-                            {formatTime(progress.duration)}
+                        <Text
+                            style={[styles.artist, { color: colors.textSecondary }]}
+                            numberOfLines={1}
+                        >
+                            {currentTrack.artist_name_string || 'Unknown Artist'}
                         </Text>
                     </View>
-                </View>
 
-                <View style={styles.mainControls}>
-                    <TouchableOpacity
-                        onPress={skipToPrevious}
-                        style={styles.mainControlButton}
-                    >
-                        <Icon name="play-skip-back" size={36} color={colors.textPrimary} />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity onPress={togglePlayPause} style={styles.playButton}>
-                        <Icon
-                            name={isPlaying ? 'pause' : 'play'}
-                            size={48}
-                            color="#FFFFFF"
+                    <View style={styles.progressContainer}>
+                        <Slider
+                            style={styles.slider}
+                            value={progress.position}
+                            minimumValue={0}
+                            maximumValue={progress.duration || 1}
+                            minimumTrackTintColor={colors.primary}
+                            maximumTrackTintColor={colors.border}
+                            thumbTintColor={colors.primary}
+                            onSlidingComplete={handleSliderChange}
                         />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        onPress={skipToNext}
-                        style={styles.mainControlButton}
-                    >
-                        <Icon
-                            name="play-skip-forward"
-                            size={36}
-                            color={colors.textPrimary}
-                        />
-                    </TouchableOpacity>
-                </View>
-
-                <View style={styles.bottomControls}>
-                    <TouchableOpacity
-                        onPress={handleGenresPress}
-                        style={styles.bottomButton}
-                    >
-                        <Icon name="pricetag" size={24} color={colors.textPrimary} />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity onPress={toggleShuffle} style={styles.bottomButton}>
-                        <Icon
-                            name="shuffle"
-                            size={24}
-                            color={shuffleMode ? colors.primary : colors.textPrimary}
-                        />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        onPress={cycleRepeatMode}
-                        style={styles.bottomButton}
-                    >
-                        <Icon
-                            name={getRepeatIcon()}
-                            size={24}
-                            color={repeatMode !== 'off' ? colors.primary : colors.textPrimary}
-                        />
-                        {repeatMode === 'one' && (
-                            <Text style={[styles.repeatOneText, { color: colors.primary }]}>
-                                1
+                        <View style={styles.timeContainer}>
+                            <Text style={[styles.timeText, { color: colors.textSecondary }]}>
+                                {formatTime(progress.position)}
                             </Text>
-                        )}
-                    </TouchableOpacity>
+                            <Text style={[styles.timeText, { color: colors.textSecondary }]}>
+                                {formatTime(progress.duration)}
+                            </Text>
+                        </View>
+                    </View>
 
-                    <TouchableOpacity
-                        onPress={handleAddToPlaylist}
-                        style={styles.bottomButton}
-                    >
-                        <Icon
-                            name="add-circle-outline"
-                            size={24}
-                            color={colors.textPrimary}
-                        />
-                    </TouchableOpacity>
+                    <View style={styles.mainControls}>
+                        <TouchableOpacity
+                            onPress={skipToPrevious}
+                            style={styles.mainControlButton}
+                        >
+                            <Icon
+                                name="play-skip-back"
+                                size={36}
+                                color={colors.textPrimary}
+                            />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            onPress={togglePlayPause}
+                            style={styles.playButton}
+                        >
+                            <Icon
+                                name={isPlaying ? 'pause' : 'play'}
+                                size={48}
+                                color="#FFFFFF"
+                            />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            onPress={skipToNext}
+                            style={styles.mainControlButton}
+                        >
+                            <Icon
+                                name="play-skip-forward"
+                                size={36}
+                                color={colors.textPrimary}
+                            />
+                        </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.bottomControls}>
+                        <TouchableOpacity
+                            onPress={handleGenresPress}
+                            style={styles.bottomButton}
+                        >
+                            <Icon name="pricetag" size={24} color={colors.textPrimary} />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            onPress={toggleShuffle}
+                            style={styles.bottomButton}
+                        >
+                            <Icon
+                                name="shuffle"
+                                size={24}
+                                color={shuffleMode ? colors.primary : colors.textPrimary}
+                            />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            onPress={cycleRepeatMode}
+                            style={styles.bottomButton}
+                        >
+                            <Icon
+                                name={getRepeatIcon()}
+                                size={24}
+                                color={
+                                    repeatMode !== 'off' ? colors.primary : colors.textPrimary
+                                }
+                            />
+                            {repeatMode === 'one' && (
+                                <Text style={[styles.repeatOneText, { color: colors.primary }]}>
+                                    1
+                                </Text>
+                            )}
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            onPress={handleAddToPlaylist}
+                            style={styles.bottomButton}
+                        >
+                            <Icon
+                                name="add-circle-outline"
+                                size={24}
+                                color={colors.textPrimary}
+                            />
+                        </TouchableOpacity>
+                    </View>
                 </View>
-            </View>
+            </ScrollView>
         </SafeAreaView>
     );
 };
